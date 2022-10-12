@@ -1,0 +1,384 @@
+---
+title: "Dashboard"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    vertical_layout: scroll
+    theme: 
+      bootswatch: sketchy
+---
+
+
+
+```{r setup, include=FALSE}
+
+
+# morph 
+
+# LIBRARIES----
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #  
+# Shiny 
+library(shiny)
+library(shinydashboard)
+library(shinyWidgets) 
+
+ library(shinyjs)
+ library(stringr)
+
+
+# Core 
+library(tidyverse)
+library(tidyquant)
+#library(reshape2)
+library(readxl)
+library(tidyr)
+
+# Interactive Visualization 
+library(plotly)
+library(treemapify)
+library(hrbrthemes)
+library(bslib)
+#library(crosstalk)
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #  
+
+
+```
+
+
+
+
+```{r}
+# Import Data 
+
+## Sold cars 
+cars_01_sold_tbl <- 
+readxl::read_excel(path = "01_Data/FLEX_DB_VERK.xlsx",sheet ="Cars_Sold" )
+
+
+## Income earned: 
+cars_02_income_tbl <- 
+readxl::read_excel(path = "01_Data/FLEX_DB_VERK.xlsx",sheet ="Income_Earned")
+
+
+## Hours_Worked 
+cars_03_hours_tbl <- 
+  readxl::read_excel(path = "01_Data/FLEX_DB_VERK.xlsx",sheet ="Hours_Worked")
+
+## Car Types 
+cars_04_types_tbl <- 
+  readxl::read_excel(path = "01_Data/FLEX_DB_VERK.xlsx",sheet ="Car_Types")
+
+
+
+
+```
+
+
+
+```{r}
+# Functions : 
+
+
+# # Visialize: 
+plot_bar_overlay_group <-
+function(Data, group){
+  Data %>% 
+  plot_ly( y = {{group}}, orientation = 'h') %>%
+  
+        add_trace(
+        x = ~Plan, name = 'Plan',  type = 'bar' ,width=0.8,
+        marker = list(color = 'rgb(255,255,255)',
+                      line = list(color = 'rgba(0,126,211, 1.0)', 
+                                  width = 3))
+      )  %>%
+      
+      add_trace(
+        x = ~Forecast, name = 'Forecast',   type = 'bar' , width= 0.8,
+        marker = list(color = 'rgba(226,72,73, 0.6)',
+                      line = list(color = 'rgba(226,72,73, 1.0)',
+                                  width = 3))
+
+      ) %>%
+
+      add_trace(
+        x = ~Actual, type = 'bar', name = 'Actual',width= 0.65,
+        marker = list(color =  'rgba(77, 189, 171,0.8)' , #0,255,0
+                      line = list(color = 'rgba(77, 189, 171 ,1.0)', #0,255,0
+                                  width = 3))
+
+      ) %>%
+      layout(barmode = 'overlay',
+             xaxis = list(title = ""),
+             yaxis = list(title =""),
+             legend = list(orientation = "h", x = 0.4, y = -0.2))
+}
+
+
+# # Car Types : 
+
+plot_schachtel <-
+function(Data){
+   #p <- 
+     Data %>%  
+      plot_ly(
+        type     = "treemap", 
+        values   = ~Sold,
+        parents  = ~Producer,
+        labels   = ~Car_Type, 
+        domain   = list(column=0),
+        textinfo = "label+value+percent parent"
+      )
+  }
+
+
+```
+
+
+
+
+```{r}
+# Data Wrangle 
+
+cars_05_joined_tbl <- 
+cars_01_sold_tbl %>% 
+  left_join(
+    cars_02_income_tbl
+  ) %>% 
+  left_join(
+    cars_03_hours_tbl
+  ) 
+
+cars_06_prod_tbl <- 
+cars_05_joined_tbl %>%
+  
+  mutate(Income_per_car   = Income_Earned / Sold_Cars, 
+         Hours_per_car    = Hours_Worked  / Sold_Cars, 
+         Hours_per_income = Hours_Worked / Income_Earned
+         ) %>% 
+  
+  mutate(Income_per_car   = Income_per_car %>% round(2), 
+         Hours_per_car    = Hours_per_car %>% round(2), 
+         Hours_per_income = Hours_per_income %>% round(2)
+         ) 
+  
+
+
+```
+
+
+
+```{r}
+# Plan 
+Plan_cars <- 
+cars_05_joined_tbl %>% 
+  filter(Metrics=="Plan") %>% 
+  summarise(Sold_Cars= sum(Sold_Cars)) 
+
+# Actual 
+
+Actual_cars <- 
+cars_05_joined_tbl %>% 
+  filter(Metrics=="Actual") %>% 
+  summarise(Sold_Cars= sum(Sold_Cars)) 
+
+# Forecast 
+
+Forecast_cars <- 
+cars_05_joined_tbl %>% 
+  filter(Metrics=="Forecast") %>% 
+  summarise(Sold_Cars= sum(Sold_Cars)) 
+
+
+
+
+```
+
+
+
+
+Car Sales 
+=======================================================================
+
+
+Row {data-height=150}
+-----------------------------------------------------------------------
+
+
+
+### Plan
+```{r}
+flexdashboard::valueBox(value   = Plan_cars$Sold_Cars, 
+                        caption = "Plan Car Sales", 
+                        icon    = icon("stats", lib= 'glyphicon'), 
+                        color   = "aqua"  
+                        )
+
+
+
+```
+
+
+### Actual 
+
+```{r}
+
+flexdashboard::valueBox(value   = Actual_cars$Sold_Cars, 
+                        caption = "Actual Car Sales", 
+                        icon    = icon("gbp", lib= 'glyphicon'), 
+                        color   = "lime"  
+                        )
+
+
+```
+
+
+
+### Forecast 
+
+```{r}
+
+flexdashboard::valueBox(value   = Forecast_cars$Sold_Cars, 
+                        caption = "Forecast Car Sales", 
+                        icon    = icon("menu-hamburger", lib= 'glyphicon'), 
+                        color   = "orange"  
+                        )
+
+
+```
+
+
+
+
+Row {data-height=400}
+-----------------------------------------------------------------------
+
+### Sold Cars
+
+```{r}
+
+cars_01_sold_tbl %>% 
+  
+  pivot_wider(names_from = Metrics, values_from =Sold_Cars  ) %>% 
+  
+  plot_bar_overlay_group(group = ~ Salesman)
+
+```
+
+### Income Earned
+
+```{r}
+
+cars_02_income_tbl %>% 
+  pivot_wider(names_from = Metrics, values_from = Income_Earned) %>% 
+  plot_bar_overlay_group(group = ~ Salesman)
+
+
+```
+
+
+
+
+### Working Hours
+
+```{r}
+
+cars_03_hours_tbl %>% 
+  pivot_wider(names_from = Metrics, values_from= Hours_Worked) %>% 
+  
+  plot_bar_overlay_group(group = ~ Salesman)
+
+```
+
+
+
+
+```{r}
+
+
+
+
+
+```
+
+
+
+
+
+Row {data-height=400}
+-----------------------------------------------------------------------
+
+### Income per Car 
+
+```{r}
+
+cars_06_prod_tbl %>% 
+  select(Salesman, Metrics, Income_per_car) %>% 
+  pivot_wider(names_from = Metrics, values_from = Income_per_car) %>% 
+  
+  plot_bar_overlay_group(group = ~ Salesman)
+
+
+```
+
+
+
+### Hours per sold car 
+
+```{r}
+
+cars_06_prod_tbl %>% 
+  select(Salesman, Metrics, Hours_per_car) %>% 
+  pivot_wider(names_from = Metrics, values_from = Hours_per_car) %>% 
+  
+  plot_bar_overlay_group(group = ~ Salesman)
+
+
+
+```
+
+
+### Hours per Income 
+
+```{r}
+cars_06_prod_tbl %>% 
+  select(Salesman, Metrics, Hours_per_income) %>% 
+  pivot_wider(names_from = Metrics, values_from = Hours_per_income) %>% 
+  
+  plot_bar_overlay_group(group = ~ Salesman)
+
+
+  
+```
+
+
+Row {data-height=650}
+-----------------------------------------------------------------------
+
+### Schachtel Team
+```{r}
+
+cars_04_types_tbl %>% #glimpse()
+  mutate(parent= " ") %>% 
+      plot_ly(
+        type     = "treemap", 
+        values   = ~ Sold,
+        parents  = ~ parent, 
+        labels   = ~ Car_Type,
+        domain   = list(column=0),
+        textinfo = "label+value+percent parent"
+      )
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+

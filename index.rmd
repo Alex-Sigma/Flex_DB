@@ -354,7 +354,7 @@ cars_06_prod_tbl %>%
 Row {data-height=650}
 -----------------------------------------------------------------------
 
-### Schachtel Team
+### Car Types Sold
 ```{r}
 
 cars_04_types_tbl %>% #glimpse()
